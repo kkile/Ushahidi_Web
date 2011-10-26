@@ -622,14 +622,16 @@
 							}
 							
 							feature_icon = feature.attributes.icon;
+                                                        /*
 							if (feature_icon!=="")
 							{
 								return "> " + feature.attributes.count;
+                                                                
 							} 
 							else
-							{
+							{*/
 								return feature.attributes.count;
-							}
+							/*}*/
 						}
 						else
 						{

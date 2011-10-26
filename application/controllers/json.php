@@ -67,6 +67,11 @@ class Json_Controller extends Template_Controller
 		if (Category_Model::is_valid_category($category_id))
 		{
 			$color = ORM::factory('category', $category_id)->category_color;
+			$icon = ORM::factory('category', $category_id)->category_image;
+			if ($icon)
+			{
+			    $icon = Kohana::config('upload.relative_directory').'/'.$icon;
+			}
 		}
 		
 		// Fetch the incidents
@@ -194,6 +199,11 @@ class Json_Controller extends Template_Controller
 		{
 			// Get the color
 			$color = ORM::factory('category', $category_id)->category_color;
+			$icon = ORM::factory('category', $category_id)->category_image;
+			if ($icon)
+			{
+			    $icon = Kohana::config('upload.relative_directory').'/'.$icon;
+			}
 		}
 
 		// Create markers by marrying the locations and incidents
