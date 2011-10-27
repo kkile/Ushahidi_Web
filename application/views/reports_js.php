@@ -16,6 +16,8 @@
  */
 ?>
 	<?php @require_once(APPPATH.'views/map_common_js.php'); ?>
+
+	var baseUrl = "<?php echo url::site(); ?>";
 	
 	// Tracks the current URL parameters
 	var urlParameters = <?php echo $url_params; ?>;
@@ -795,8 +797,23 @@
 			fillOpacity: "0.8",
 			strokeColor: "#197700",
 			strokeWidth: 3,
-			graphicZIndex: 1
-		});
+			graphicZIndex: 1,
+                        externalGraphic: "${icon}"
+		}, {
+                        context: {
+                            icon: function(feature) {
+				feature_icon = feature.attributes.icon;
+				if (feature_icon!=="")
+				{
+					return baseUrl + feature_icon;
+				} 
+				else
+				{
+					return "";
+				}
+                            }
+                        }
+                });
 				
 		// Apply transform to each feature before adding it to the layer
 		preFeatureInsert = function(feature)

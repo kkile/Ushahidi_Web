@@ -60,7 +60,11 @@ class Json_Controller extends Template_Controller
 		$media_type = (isset($_GET['m']) AND intval($_GET['m']) > 0)? intval($_GET['m']) : 0;
 		
 		// Get the incident and category id
-		$category_id = (isset($_GET['c']) AND intval($_GET['c']) > 0)? intval($_GET['c']) : 0;
+                if (isset($_GET['c']) AND count(explode(",", $_GET['c'])) != 1) {
+                    $category_id = 0;
+                } else {
+		    $category_id = (isset($_GET['c']) AND intval($_GET['c']) > 0)? intval($_GET['c']) : 0;
+                }
 		$incident_id = (isset($_GET['i']) AND intval($_GET['i']) > 0)? intval($_GET['i']) : 0;
 		
 		// Get the category colour

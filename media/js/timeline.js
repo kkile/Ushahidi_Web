@@ -435,10 +435,11 @@
 				strokeWidth: "${strokeWidth}",
 				strokeOpacity: "0.3",
 				label:"${clusterCount}",
+                                labelYOffset: "${labelYOffset}",
 				//labelAlign: "${labelalign}", // IE doesn't like this for some reason
-				fontWeight: "${fontweight}",
-				fontColor: "#ffffff",
-				fontSize: "${fontsize}"
+				fontWeight: "bolder",
+				fontColor: "black",
+				fontSize: "20"
 			},
 			{
 				context:
@@ -460,6 +461,41 @@
 							(markerRadius * 0.6);
 						}
 					},
+                                        labelYOffset: function(feature) {
+						feature_count = feature.attributes.count;
+						if (feature_count > 10000)
+						{
+							return markerRadius * 19;
+						}
+						else if (feature_count > 5000)
+						{
+							return markerRadius * 12;
+						}
+						else if (feature_count > 1000)
+						{
+							return markerRadius * 10;
+						}
+						else if (feature_count > 500)
+						{
+							return markerRadius * 9;
+						}
+						else if (feature_count > 100)
+						{
+							return markerRadius * 8;
+						}
+						else if (feature_count > 10)
+						{
+							return markerRadius * 7;
+						}
+						else if (feature_count >= 2)
+						{
+							return markerRadius * 5;
+						}
+						else
+						{
+							return markerRadius * 4;
+						}
+                                        },
 					fontsize: function(feature)
 					{
 						feature_icon = feature.attributes.icon;
@@ -472,23 +508,23 @@
 							feature_count = feature.attributes.count;
 							if (feature_count > 1000)
 							{
-								return "20px";
+								return "40px";
 							}
 							else if (feature_count > 500)
 							{
-								return "18px";
+								return "28px";
 							}
 							else if (feature_count > 100)
 							{
-								return "14px";
+								return "22px";
 							}
 							else if (feature_count > 10)
 							{
-								return "12px";
+								return "22px";
 							}
 							else if (feature_count >= 2)
 							{
-								return "10px";
+								return "12px";
 							}
 							else
 							{

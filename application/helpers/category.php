@@ -237,6 +237,7 @@ class category_Core {
 				'category_title' => Category_Lang_Model::category_title($temp_category->id,Kohana::config('locale.language.0')),
 				'parent_id' => $temp_category->parent_id,
 				'category_color' => $temp_category->category_color,
+                                'category_image' => $temp_category->category_image,
 				'report_count' => $report_count,
 				'children' => array()
 			);
@@ -262,14 +263,18 @@ class category_Core {
 		{
 			// Determine the category class
 			$category_class = ($category['parent_id'] > 0)? " class=\"report-listing-category-child\"" : "";
-			
+			$category_image = Kohana::config('upload.relative_directory').'/'.$category['category_image'];
 			$tree_html .= "<li".$category_class.">"
-							. "<a href=\"#\" class=\"cat_selected\" id=\"filter_link_cat_".$id."\">"
-							. "<span class=\"item-swatch\" style=\"background-color: #".$category['category_color']."\">&nbsp;</span>"
-							. "<span class=\"item-title\">".strip_tags($category['category_title'])."</span>"
+							. "<a href=\"#\" class=\"cat_selected\" id=\"filter_link_cat_".$id."\">";
+                        if ($category_image) {
+                        	$tree_html .= "<span class=\"item-swatch\" style=\"\"> <img width=100% height=100% src=\"".$category_image."\"> </span>";
+                        } else {
+                        	$tree_html .= "<span class=\"item-swatch\" style=\"background-color: #".$category['category_color']."; background-image: url(".$category_image.")\">&nbsp;"."</span>";
+                        }
+
+			$tree_html .= "<span class=\"item-title\">".strip_tags($category['category_title'])."</span>"
 							. "<span class=\"item-count\">".$category['report_count']."</span>"
 							. "</a></li>";
-							
 			$tree_html .= self::_generate_treeview_html($category['children']);
 		}
 		
