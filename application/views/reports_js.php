@@ -757,7 +757,7 @@
 	function showIncidentMap()
 	{
 		// URL to be used for fetching the incidents
-		fetchURL = '<?php echo url::site().'json/index' ;?>';
+		fetchURL = '<?php echo url::site().'json/index_for_reports' ;?>';
 		
 		// Generate the url parameter string
 		parameterStr = "";
@@ -798,22 +798,22 @@
 			strokeColor: "#197700",
 			strokeWidth: 3,
 			graphicZIndex: 1,
-                        externalGraphic: "${icon}"
+            externalGraphic: "${icon}"
 		}, {
-                        context: {
-                            icon: function(feature) {
-				feature_icon = feature.attributes.icon;
-				if (feature_icon!=="")
-				{
-					return baseUrl + feature_icon;
-				} 
-				else
-				{
-					return "";
+            context: {
+                icon: function(feature) {
+					feature_icon = feature.attributes.icon;
+					if (feature_icon!=="")
+					{
+						return baseUrl + feature_icon;
+					} 
+					else
+					{
+						return "";
+					}
 				}
-                            }
-                        }
-                });
+			}
+		});
 				
 		// Apply transform to each feature before adding it to the layer
 		preFeatureInsert = function(feature)

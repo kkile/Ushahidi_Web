@@ -44,6 +44,133 @@ class Json_Controller extends Template_Controller
 		// Cacheable JSON Controller
 		$this->is_cachable = TRUE;
 	}
+	
+
+
+
+	/**
+	 * Generate JSON in NON-CLUSTER mode for the Reports Map view
+	 */
+	public function index_for_reports()
+	{
+		$json = "";
+		$json_item = "";
+		$json_array = array();
+		$color = Kohana::config('settings.default_map_all');
+		$icon = "";
+
+		$media_type = (isset($_GET['m']) AND intval($_GET['m']) > 0)? intval($_GET['m']) : 0;
+		
+		// Get the incident and category id
+        if (isset($_GET['c']) AND count(explode(",", $_GET['c'])) != 1) {
+			$category_id = 0;
+        } else {
+			$category_id = (isset($_GET['c']) AND intval($_GET['c']) > 0)? intval($_GET['c']) : 0;
+        }
+		$incident_id = (isset($_GET['i']) AND intval($_GET['i']) > 0)? intval($_GET['i']) : 0;
+
+		// Get the category colour
+		if (Category_Model::is_valid_category($category_id))
+		{
+			$color = ORM::factory('category', $category_id)->category_color;
+			$icon = ORM::factory('category', $category_id)->category_image;
+			if ($icon)
+			{
+			    $icon = Kohana::config('upload.relative_directory').'/'.$icon;
+			}
+		}
+		
+		// Fetch the incidents
+		$markers = (isset($_GET['page']) AND intval($_GET['page']) > 0)? reports::fetch_incidents(TRUE) : reports::fetch_incidents();
+		
+		// Variable to store individual item for report detail page
+		$json_item_first = "";	
+		foreach ($markers as $marker)
+		{
+			$icon = ORM::factory('category', $marker->cat_id)->category_image;
+			if ($icon)
+			{
+			    $icon = Kohana::config('upload.relative_directory').'/'.$icon;
+			}
+			
+			$thumb = "";
+			if ($media_type == 1)
+			{
+				$media = ORM::factory('incident', $marker->incident_id)->media;
+				if ($media->count())
+				{
+					foreach ($media as $photo)
+					{
+						if ($photo->media_thumb)
+						{ 
+							// Get the first thumb
+							$prefix = url::base().Kohana::config('upload.relative_directory');
+							$thumb = $prefix."/".$photo->media_thumb;
+							break;
+						}
+					}
+				}
+			}
+			
+			$json_item = "{";
+			$json_item .= "\"type\":\"Feature".$marker->cat_id."\",";
+			$json_item .= "\"properties\": {";
+			$json_item .= "\"id\": \"".$marker->incident_id."\", \n";
+
+			$encoded_title = utf8tohtml::convert($marker->incident_title, TRUE);
+			$encoded_title = str_ireplace('"','&#34;',$encoded_title);
+			$encoded_title = json_encode($encoded_title);
+			$encoded_title = str_ireplace('"', '', $encoded_title);
+
+			$json_item .= "\"name\":\"" . str_replace(chr(10), ' ', str_replace(chr(13), ' ', "<a "
+					. "href='".url::base()."reports/view/".$marker->incident_id."'>".$encoded_title)."</a>") . "\","
+					. "\"link\": \"".url::base()."reports/view/".$marker->incident_id."\", ";
+
+			$json_item .= (isset($category))
+				? "\"category\":[" . $category_id . "], "
+				: "\"category\":[0], ";
+
+			$json_item .= "\"color\": \"".$color."\", \n";
+			$json_item .= "\"icon\": \"".$icon."\", \n";
+			$json_item .= "\"thumb\": \"".$thumb."\", \n";
+			$json_item .= "\"timestamp\": \"" . strtotime($marker->incident_date) . "\"";
+			$json_item .= "},";
+			$json_item .= "\"geometry\": {";
+			$json_item .= "\"type\":\"Point\", ";
+			$json_item .= "\"coordinates\":[" . $marker->longitude . ", " . $marker->latitude . "]";
+			$json_item .= "}";
+			$json_item .= "}";
+
+			if ($marker->incident_id == $incident_id)
+			{
+				$json_item_first = $json_item;
+			}
+			else
+			{
+				array_push($json_array, $json_item);
+			}
+			
+			// Get Incident Geometries
+			$geometry = $this->_get_geometry($marker->incident_id, $marker->incident_title, $marker->incident_date);
+			if (count($geometry))
+			{
+				$json_item = implode(",", $geometry);
+				array_push($json_array, $json_item);
+			}
+		}
+		
+		if ($json_item_first)
+		{
+			// Push individual marker in last so that it is layered on top when pulled into map
+			array_push($json_array, $json_item_first);
+		}
+		
+		$json = implode(",", $json_array);
+
+		header('Content-type: application/json; charset=utf-8');
+		$this->template->json = $json;
+	}
+
 
 
 	/**
@@ -60,13 +187,13 @@ class Json_Controller extends Template_Controller
 		$media_type = (isset($_GET['m']) AND intval($_GET['m']) > 0)? intval($_GET['m']) : 0;
 		
 		// Get the incident and category id
-                if (isset($_GET['c']) AND count(explode(",", $_GET['c'])) != 1) {
-                    $category_id = 0;
-                } else {
-		    $category_id = (isset($_GET['c']) AND intval($_GET['c']) > 0)? intval($_GET['c']) : 0;
-                }
+        if (isset($_GET['c']) AND count(explode(",", $_GET['c'])) != 1) {
+			$category_id = 0;
+        } else {
+			$category_id = (isset($_GET['c']) AND intval($_GET['c']) > 0)? intval($_GET['c']) : 0;
+        }
 		$incident_id = (isset($_GET['i']) AND intval($_GET['i']) > 0)? intval($_GET['i']) : 0;
-		
+
 		// Get the category colour
 		if (Category_Model::is_valid_category($category_id))
 		{

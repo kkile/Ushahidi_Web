@@ -891,5 +891,7 @@ class reports_Core {
 			return $all_incidents;
 		}
 	}	
+	
+	
 }
 ?>
