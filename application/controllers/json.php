@@ -81,7 +81,7 @@ class Json_Controller extends Template_Controller
 		}
 		
 		// Fetch the incidents
-		$markers = (isset($_GET['page']) AND intval($_GET['page']) > 0)? reports::fetch_incidents(TRUE) : reports::fetch_incidents();
+		$markers = (isset($_GET['page']) AND intval($_GET['page']) > 0)? reports::fetch_incidents_for_reports_map(TRUE) : reports::fetch_incidents_for_reports_map();
 		
 		// Variable to store individual item for report detail page
 		$json_item_first = "";	

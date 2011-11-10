@@ -892,6 +892,334 @@ class reports_Core {
 		}
 	}	
 	
+
+	/**
+    * NOTE: This method is a copy and paste of fetch_incidents where the only
+    * substantive change is the call to Incident_model::get_incidents
+	* 
+	* 
+	* Helper function to fetch and optionally paginate the list of
+	* incidents/reports via the Incident Model using one or all of the
+	* following URL parameters
+	*	- category
+	*	- location bounds
+	*	- incident mode
+	*	- media
+	*	- location radius
+	*
+	* @param $paginate Optionally paginate the incidents - Default is FALSE
+	* @return Database_Result
+	*/
+	public static function fetch_incidents_for_reports_map($paginate = FALSE, $items_per_page = 0)
+	{
+		// Reset the paramters
+		self::$params = array();
+	
+		// Initialize the category id
+		$category_id = 0;
+	
+		$table_prefix = Kohana::config('database.default.table_prefix');
+	
+		// Fetch the URL data into a local variable
+		$url_data = array_merge($_GET);
+	
+		// Check if some parameter values are separated by "," except the location bounds
+		$exclude_params = array('c' => '', 'v' => '', 'm' => '', 'mode' => '', 'sw'=> '', 'ne'=> '');
+		foreach ($url_data as $key => $value)
+		{
+			if (array_key_exists($key, $exclude_params) AND !is_array($value))
+			{
+				if (is_array(explode(",", $value)))
+				{
+					$url_data[$key] = explode(",", $value);
+				}
+			}
+		}
+	
+		//> BEGIN PARAMETER FETCH
+	
+		//
+		// Check for the category parameter
+		//
+		if ( isset($url_data['c']) AND !is_array($url_data['c']) AND intval($url_data['c']) > 0)
+		{
+			// Get the category ID
+			$category_id = intval($_GET['c']);
+			// Add category parameter to the parameter list
+			array_push(self::$params,
+			'(c.id = '.$category_id.' OR c.parent_id = '.$category_id.')',
+					'c.category_visible = 1'
+				);
+		}
+		elseif (isset($url_data['c']) AND is_array($url_data['c']))
+		{
+			// Sanitize each of the category ids
+			$category_ids = array();
+			foreach ($url_data['c'] as $c_id)
+			{
+				if (intval($c_id) > 0)
+				{
+					$category_ids[] = intval($c_id);
+				}
+			}
+				
+			// Check if there are any category ids
+			if (count($category_ids) > 0)
+			{
+			$category_ids = implode(",", $category_ids);
+				
+			array_push(self::$params,
+			'(c.id IN ('.$category_ids.') OR c.parent_id IN ('.$category_ids.'))',
+						'c.category_visible = 1'
+					);
+			}
+		}
+			
+		// 
+		// Incident modes
+		//
+		if (isset($url_data['mode']) AND is_array($url_data['mode']))
+		{
+			$incident_modes = array();
+				
+			// Sanitize the modes
+			foreach ($url_data['mode'] as $mode)
+			{
+				if (intval($mode) > 0)
+				{
+					$incident_modes[] = intval($mode);
+				}
+			}
+				
+			// Check if any modes exist and add them to the parameter list
+			if (count($incident_modes) > 0)
+			{
+				array_push(self::$params,
+				'i.incident_mode IN ('.implode(",", $incident_modes).')'
+						);
+			}
+		}
+		
+		//
+		// Location bounds parameters
+		//
+		if (isset($url_data['sw']) AND isset($url_data['ne']))
+		{
+			$southwest = $url_data['sw'];
+			$northeast = $url_data['ne'];
+				
+			if ( count($southwest) == 2 AND count($northeast) == 2 )
+			{
+				$lon_min = (float) $southwest[0];
+				$lon_max = (float) $northeast[0];
+				$lat_min = (float) $southwest[1];
+				$lat_max = (float) $northeast[1];
+					
+				// Add the location conditions to the parameter list
+				array_push(self::$params,
+				'l.latitude >= '.$lat_min,
+				'l.latitude <= '.$lat_max,
+				'l.longitude >= '.$lon_min,
+				'l.longitude <= '.$lon_max
+						);
+			}
+		}
+
+		//
+		// Location bounds - based on start location and radius
+		//
+		if (isset($url_data['radius']) AND isset($url_data['start_loc']))
+		{
+			//if $url_data['start_loc'] is just comma delimited strings, then make it into an array
+			if(!is_array($url_data['start_loc']))
+			{
+				$url_data['start_loc'] = explode(",", $url_data['start_loc']);
+			}
+			if (intval($url_data['radius']) > 0 AND is_array($url_data['start_loc']))
+			{
+				$bounds = $url_data['start_loc'];
+				if (count($bounds) == 2 AND is_numeric($bounds[0]) AND is_numeric($bounds[1]))
+				{
+					self::$params['radius'] = array(
+					'distance' => intval($url_data['radius']),
+					'latitude' => $bounds[0],
+					'longitude' => $bounds[1]);
+				}
+			}
+		}
+
+		//
+		// Check for incident date range parameters
+		//
+		if (isset($url_data['from']) AND isset($url_data['to']))
+		{
+			$date_from = date('Y-m-d', strtotime($url_data['from']));
+			$date_to = date('Y-m-d', strtotime($url_data['to']));
+				
+			array_push(self::$params,
+			'i.incident_date >= "'.$date_from.'"',
+			'i.incident_date <= "'.$date_to.'"'
+			);
+		}
+
+		/**
+		* ---------------------------
+		 * NOTES: E.Kala July 13, 2011
+		* ---------------------------
+		* Additional checks for date parameters specified in timestamp format
+		* This only affects those submitted from the main page
+		*/
+
+		// Start Date
+		if (isset($_GET['s']) AND intval($_GET['s']) > 0)
+		{
+			$start_date = intval($_GET['s']);
+			array_push(self::$params,
+			'i.incident_date >= "'.date("Y-m-d H:i:s", $start_date).'"'
+			);
+		}
+
+		// End Date
+		if (isset($_GET['e']) AND intval($_GET['e']))
+		{
+			$end_date = intval($_GET['e']);
+			array_push(self::$params, 
+				'i.incident_date <= "'.date("Y-m-d H:i:s", $end_date).'"');
+		}
+
+		//
+		// Check for media type parameter
+		//
+		if (isset($url_data['m']) AND is_array($url_data['m']))
+		{
+			// An array of media filters has been specified
+			// Validate the media types
+			$media_types = array();
+			foreach ($url_data['m'] as $media_type)
+			{
+				if (intval($media_type) > 0)
+				{
+					$media_types[] = intval($media_type);
+				}
+			}
+			if (count($media_types) > 0)
+			{
+				array_push(self::$params, 
+				'i.id IN (SELECT DISTINCT incident_id FROM '.$table_prefix.'media WHERE media_type IN ('.implode(",", $media_types).'))'
+				);
+			}
+				
+		}
+		elseif (isset($url_data['m']) AND !is_array($url_data['m']))
+		{
+			// A single media filter has been specified
+			$media_type = $url_data['m'];
+			
+			// Sanitization
+			if (intval($media_type) > 0)
+			{
+				array_push(self::$params,
+					'i.id IN (SELECT DISTINCT incident_id FROM '.$table_prefix.'media WHERE media_type = '.$media_type.')'
+					);
+			}
+		}
+
+			//
+			// Check if the verification status has been specified
+		// 
+		if (isset($url_data['v']) AND is_array($url_data['v']))
+		{
+			$verified_status = array();
+			foreach ($url_data['v'] as $verified)
+			{
+				if (intval($verified) >= 0)
+				{
+					$verified_status[] = intval($verified);
+				}
+			}
+				
+			if (count($verified_status) > 0)
+			{
+				array_push(self::$params,
+				'i.incident_verified IN ('.implode(",", $verified_status).')'
+				);
+			}
+		}
+		elseif (isset($url_data['v']) AND !is_array($url_data['v']) AND intval($url_data) >= 0)
+		{
+			array_push(self::$param,
+				'i.incident_verified = '.intval($url_data['v'])
+			);
+		}
+
+		//
+		// Check if they're filtering over custom form fields
+		//
+		if (isset($url_data['cff']) AND is_array($url_data['cff']))
+		{
+			$where_text = "";
+			$i = 0;
+			foreach ($url_data['cff'] as $field)
+			{
+				$field_id = $field[0];
+				if (intval($field_id) < 1)
+					break;
+	
+				$field_value = $field[1];
+				if (is_array($field_value))
+				{
+					$field_value = implode(",", $field_value);
+				}
+	
+				$i++;
+				if ($i > 1)
+				{
+					$where_text .= " OR ";
+				}
+	
+				$where_text .= "(form_field_id = ".intval($field_id)
+					. " AND form_response = '".Database::instance()->escape_str(trim($field_value))."')";
+			}
+				
+			// Make sure there was some valid input in there
+			if ($i > 0)
+			{
+				array_push(self::$params, 'i.id IN (SELECT DISTINCT incident_id FROM '.$table_prefix.'form_response WHERE '.$where_text.')');
+			}
+				
+		} // End of handling cff
+
+		// In case a plugin or something wants to get in on the parameter fetching fun
+		Event::run('ushahidi_filter.fetch_incidents_set_params', self::$params);
+		
+		//> END PARAMETER FETCH
+
+
+		// Fetch all the incidents
+		$all_incidents = Incident_Model::get_incidents_for_reports_map(self::$params);
+
+		if ($paginate)
+		{
+			// Set up pagination
+			$page_limit = (intval($items_per_page) > 0)? $items_per_page : intval (Kohana::config('settings.items_per_page'));
+				
+			$pagination = new Pagination(array(
+			'style' => 'front-end-reports',
+				'query_string' => 'page',
+				'items_per_page' => $page_limit,
+				'total_items' => $all_incidents->count()
+					));
+			
+			// Return paginated results
+			return Incident_Model::get_incidents_for_reports_map(self::$params, $pagination);
+		}
+		else
+		{
+			// Return
+			return $all_incidents;
+		}
+	}
+	
 	
 }
 ?>
